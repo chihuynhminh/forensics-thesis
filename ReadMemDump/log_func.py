@@ -1,5 +1,3 @@
-from config_val import *
-
 def print_err(s):
     f = open('err.txt', 'a')
     f.write(s)

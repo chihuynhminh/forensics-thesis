@@ -41,7 +41,7 @@ def find4KBPageIndex(pname, b):
     return page_indexs
 
 #scan page table with pt_con_func is function check condition
-def scanPageTable(pde, pt_addr, pt_con_func, i0, i1, page_indexs_1, page_indexs_2):
+def scanPageTable(pde, pt_addr, pt_con_func, b, i0, i1, page_indexs_1, page_indexs_2):
     w = 0
     for i2 in range(1024):
         pte_addr = pt_addr + 4*i2
@@ -57,21 +57,26 @@ def scanPageTable(pde, pt_addr, pt_con_func, i0, i1, page_indexs_1, page_indexs_
     return w
 
 #scan page directory with pd_con_func is function check condition
-def scanPageDirectory(pd_addr, pd_con_func, pt_con_func, i0, page_indexs_1, page_indexs_2, mem_size, page_indexs_1_4MB, page_indexs_2_4MB):
+def scanPageDirectory(pd_addr, pd_con_func, pt_con_func, b, i0, page_indexs_1, page_indexs_2, mem_size, page_indexs_1_4MB = [], page_indexs_2_4MB = []):
     w = 0
     for i1 in range(1024):
         pde_addr = pd_addr + i1 * 4
         pde = getEntry(pde_addr, b, i0, i1, 0)
 
-        check_pde = pd_con_func(pde)
+        check_pde = pd_con_func(pde, mem_size)
         if (check_pde == 0): continue
         if (check_pde == -1): return -1
 
-        pt_addr = pde & 0xfffff000
-        if (pt_addr > mem_size - 1024): continue
-        w_pte = scanPageTable(pde, pt_addr, pt_con_func, i0, i1, page_indexs_1, page_indexs_2)
-        if (w_pte == -1): return -1
-        w += w_pte
+        if (bitAt(pde, 7) == 1):
+            page_addr = pde &0xffc00000
+            if (page_addr in page_indexs_1_4MB or page_addr in page_indexs_2_4MB):
+                w += 1
+        else:
+            pt_addr = pde & 0xfffff000
+            if (pt_addr > mem_size - 1024): continue
+            w_pte = scanPageTable(pde, pt_addr, pt_con_func, b, i0, i1, page_indexs_1, page_indexs_2)
+            if (w_pte == -1): return -1
+            w += w_pte
 
     return w
 
@@ -89,26 +94,3 @@ def find4MBPageIndex(pname, b):
 
     return page_indexs
 
-#scan page directory with pd_con_func is function check condition
-def scanPageDirectory_nopae(pd_addr, pd_con_func, pt_con_func, i0, page_indexs_1, page_indexs_2, mem_size, page_indexs_1_4MB, page_indexs_2_4MB):
-    w = 0
-    for i1 in range(1024):
-        pde_addr = pd_addr + i1 * 4
-        pde = getEntry(pde_addr, b, i0, i1, 0)
-
-        check_pde = pd_con_func(pde)
-        if (check_pde == 0): continue
-        if (check_pde == -1): return -1
-
-        if (bitAt(pde, 7) == 1):
-            page_addr = pde &0xffc00000
-            if (page_addr in page_indexs_1_4MB or page_addr in page_indexs_2_4MB):
-                w += 1
-        else:
-            pt_addr = pde & 0xfffff000
-            if (pt_addr > mem_size - 1024): continue
-            w_pte = scanPageTable(pde, pt_addr, pt_con_func, i0, i1, page_indexs_1, page_indexs_2)
-            if (w_pte == -1): return -1
-            w += w_pte
-
-    return w
