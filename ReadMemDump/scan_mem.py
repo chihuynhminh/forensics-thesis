@@ -13,39 +13,38 @@ def bitFromTo(a, i_from, i_to):
     return (a >> i_from) & (pow(2, i_to - i_from + 1) - 1)
 
 # Get entry of paging table at an specific address (4 b)
-def getEntry(addr, b, i0, i1, i2):
-    _4b = b[addr : addr + 4]
-    if (len(_4b) != 4):
+def getEntry(addr, mem, i0, i1, i2, num_of_bytes):
+    _nbyte = mem[addr : addr + num_of_bytes]
+    if (len(_nbyte) != num_of_bytes):
         print_err(hex(addr) + ' ' + str(i0) + ' ' + str(i1) + ' ' + str(i2) + '\n')
         return 0
-  
+    
     # little endian
-    pde = _4b[3] << 24
-    pde = pde | (_4b[2] << 16)
-    pde = pde | (_4b[1] << 8)
-    pde = pde | (_4b[0])
-    return pde
+    entry = 0
+    for i in range(num_of_bytes):
+        entry = entry | (_nbyte[i] << (8*i))
+    return entry
 
 # Find all 4KB page contain process name
-def find4KBPageIndex(pname, b):
+def find4KBPageIndex(pname, mem):
     page_indexs = []
 
     process_name = bytes(pname, 'ascii') + b'\x00'
-    string_index = [b.find(process_name)]
+    string_index = [mem.find(process_name)]
 
     while (string_index[-1] != -1):
         if(len(page_indexs) == 0 or page_indexs[-1] != (string_index[-1] & 0xfffff000)):
             page_indexs.append(string_index[-1] & 0xfffff000)
-        string_index.append(b.find(process_name, string_index[-1] + 1))    # get last element of array: array_name[-1]
+        string_index.append(mem.find(process_name, string_index[-1] + 1))    # get last element of array: array_name[-1]
 
     return page_indexs
 
-#scan page table with pt_con_func is function check condition
-def scanPageTable(pde, pt_addr, pt_con_func, b, i0, i1, page_indexs_1, page_indexs_2):
+# Scan page table with pt_con_func is function check condition
+def scanPageTable(pde, pt_addr, pt_con_func, mem, i0, i1, page_indexs_1, page_indexs_2):
     w = 0
     for i2 in range(1024):
         pte_addr = pt_addr + 4*i2
-        pte = getEntry(pte_addr, b, i0, i1, i2)
+        pte = getEntry(pte_addr, mem, i0, i1, i2, 4)
         
         check_pte = pt_con_func(pde, pte)
         if (check_pte == 0): continue
@@ -57,22 +56,22 @@ def scanPageTable(pde, pt_addr, pt_con_func, b, i0, i1, page_indexs_1, page_inde
     return w
 
 # Check is a page directory also a page table 
-def check_loop_pd(pd_addr, b, i0):
+def check_loop_pd(pd_addr, mem, i0):
     for i1 in range(1024):
         pde_addr = pd_addr + i1 * 4
-        pde = getEntry(pde_addr, b, i0, i1, 0)
+        pde = getEntry(pde_addr, mem, i0, i1, 0, 4)
         pt_addr = pde & 0xfffff000
         if (pd_addr == pt_addr): return True
     return False
 
-#scan page directory with pd_con_func is function check condition
-def scanPageDirectory(pd_addr, pd_con_func, pt_con_func, b, i0, page_indexs_1, page_indexs_2, mem_size, page_indexs_1_4MB = [], page_indexs_2_4MB = []):
+# Scan page directory with pd_con_func is function check condition
+def scanPageDirectory(pd_addr, pd_con_func, pt_con_func, mem, i0, page_indexs_1, page_indexs_2, mem_size, page_indexs_1_4MB = [], page_indexs_2_4MB = []):
     w = 0
-    isLoop = check_loop_pd(pd_addr, b, i0)
+    isLoop = check_loop_pd(pd_addr, mem, i0)
 
     for i1 in range(1024):
         pde_addr = pd_addr + i1 * 4
-        pde = getEntry(pde_addr, b, i0, i1, 0)
+        pde = getEntry(pde_addr, mem, i0, i1, 0, 4)
 
         check_pde = pd_con_func(pde, mem_size)
         if (check_pde == 0): continue
@@ -92,7 +91,7 @@ def scanPageDirectory(pd_addr, pd_con_func, pt_con_func, b, i0, page_indexs_1, p
             
             if (pt_addr > mem_size - 1024): continue
             
-            w_pte = scanPageTable(pde, pt_addr, pt_con_func, b, i0, i1, page_indexs_1, page_indexs_2)
+            w_pte = scanPageTable(pde, pt_addr, pt_con_func, mem, i0, i1, page_indexs_1, page_indexs_2)
             
             if (w_pte == -1):
                 if (isLoop):
@@ -106,16 +105,16 @@ def scanPageDirectory(pd_addr, pd_con_func, pt_con_func, b, i0, page_indexs_1, p
     return w
 
 # Find all 4MB page contain process name
-def find4MBPageIndex(pname, b):
+def find4MBPageIndex(pname, mem):
     page_indexs = []
 
     process_name = bytes(pname, 'ascii') + b'\x00'
-    string_index = [b.find(process_name)]
+    string_index = [mem.find(process_name)]
 
     while (string_index[-1] != -1):
         if(len(page_indexs) == 0 or page_indexs[-1] != (string_index[-1] & 0xffc00000)):
             page_indexs.append(string_index[-1] & 0xffc00000)
-        string_index.append(b.find(process_name, string_index[-1] + 1))    # get last element of array: array_name[-1]
+        string_index.append(mem.find(process_name, string_index[-1] + 1))    # get last element of array: array_name[-1]
 
     return page_indexs
 
