@@ -1,9 +1,10 @@
 from x86_nopse_nopae import *
-import math
 
 # Check pde function
 def check_pd_func_pse_nopae(pde, memsize):
     if (bitAt(pde, 0) == 0): return 0
+    MAXPHYADDR = math.ceil(math.log(memsize, 2))
+    if (bitFromTo(pde, MAXPHYADDR, 31) != 0): return -1
     if (bitAt(pde, 7) == 1):
         MAXPHYADDR = math.ceil(math.log(memsize, 2))
         if(MAXPHYADDR <= 32):
@@ -14,7 +15,7 @@ def check_pd_func_pse_nopae(pde, memsize):
     return 1
 
 # List page directory with 2 process name
-def list_pd_pse_nopae(pname1, pname2, mem_size, mem, file_mem_path):
+def list_pd_pse_nopae(pname1, pname2, mem_size, mem):
     page_indexs_1 = find4KBPageIndex(pname1, mem)
     page_indexs_2 = find4KBPageIndex(pname2, mem)
     page_indexs_1_4MB = find4MBPageIndex(pname1, mem)
@@ -36,6 +37,3 @@ def list_pd_pse_nopae(pname1, pname2, mem_size, mem, file_mem_path):
             w_cr3.append(w)
 
     return cr3_list, w_cr3    
-    
-    
-

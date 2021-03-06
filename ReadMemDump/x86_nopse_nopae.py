@@ -1,22 +1,26 @@
 from scan_mem import *
 
 # Check pte function
-def check_pt_func_nopse_nopae(pde, pte):
+def check_pt_func_nopse_nopae(pde, pte, memsize, byte_per_entry):
     if (bitAt(pte, 0) == 0): return 0
     if (bitAt(pte, 6) == 1):
         if (bitAt(pte, 5) == 0): return -1
     if (bitAt(pte, 2) == 1):
         if (bitAt(pde, 2) == 0): return -1
+    MAXPHYADDR = math.ceil(math.log(memsize, 2))
+    if (bitFromTo(pte, MAXPHYADDR, 31) != 0): return -1
     return 1
 
 # Check pde function
 def check_pd_func_nopse_nopae(pde, memsize):
     if (bitAt(pde, 0) == 0): return 0
     if (bitAt(pde, 7) == 1): return -1
+    MAXPHYADDR = math.ceil(math.log(memsize, 2))
+    if (bitFromTo(pde, MAXPHYADDR, 31) != 0): return -1
     return 1
 
 # List page directory with 2 process name
-def list_pd_nopse_nopae(pname1, pname2, mem_size, mem, file_mem_path):
+def list_pd_nopse_nopae(pname1, pname2, mem_size, mem):
     page_indexs_1 = find4KBPageIndex(pname1, mem)
     page_indexs_2 = find4KBPageIndex(pname2, mem)
     
